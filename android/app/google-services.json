@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "8842383345",
+    "project_id": "flutterauth-7deca",
+    "storage_bucket": "flutterauth-7deca.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:8842383345:android:2da038c88247ecbbeb3e50",
+        "android_client_info": {
+          "package_name": "com.example.looma_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "8842383345-sjauiebtr0i3hkmjt2kgb12159fa2ta6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-Yeac6TRt4PJ_6QWV7tFNVKXlohDCJgI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "8842383345-sjauiebtr0i3hkmjt2kgb12159fa2ta6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "8842383345-1fkb2oah6ng634vngl64jmt8ruveamn2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.looma"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
