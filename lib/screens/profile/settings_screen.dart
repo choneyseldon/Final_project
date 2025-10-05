@@ -25,10 +25,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadUserData();
   }
 
-  void _loadUserData() {
-    final user = context.read<AuthProvider>().user;
+  void _loadUserData() async {
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.user;
     _nameController.text = user?.displayName ?? '';
-    _bioController.text = 'Photography enthusiast and creative soul 📸✨';
+    
+    // Load bio from Firebase
+    try {
+      final bio = await authProvider.getUserBio();
+      if (mounted) {
+        setState(() {
+          _bioController.text = bio.isEmpty ? 'Photography enthusiast and creative soul 📸✨' : bio;
+        });
+      }
+    } catch (e) {
+      // Fallback to default bio if error
+      _bioController.text = 'Photography enthusiast and creative soul 📸✨';
+    }
   }
 
   @override
@@ -38,19 +51,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  void _saveProfile() {
-    // TODO: Implement save functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Profile updated successfully!',
-          style: GoogleFonts.nunito(color: Colors.white),
+  void _saveProfile() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
         ),
-        backgroundColor: AppTheme.primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      );
+      
+      // Save bio to Firebase
+      await authProvider.updateUserBio(_bioController.text.trim());
+      
+      // Update display name if it has changed
+      final currentDisplayName = authProvider.user?.displayName ?? '';
+      final newDisplayName = _nameController.text.trim();
+      
+      if (newDisplayName.isNotEmpty && newDisplayName != currentDisplayName) {
+        await authProvider.updateDisplayName(newDisplayName);
+      }
+      
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Profile updated successfully!',
+              style: GoogleFonts.nunito(color: Colors.white),
+            ),
+            backgroundColor: AppTheme.primaryColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to update profile: ${e.toString()}',
+              style: GoogleFonts.nunito(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
   }
 
   void _changePassword() {

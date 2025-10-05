@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../providers/photo_provider.dart';
+import '../../models/post.dart';
+import '../../services/post_service.dart';
 import '../../theme/app_theme.dart';
+import 'dart:math';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -14,8 +15,17 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Photo> _searchResults = [];
+  final PostService _postService = PostService.instance;
+  List<Post> _searchResults = [];
+  List<Post> _allPosts = [];
+  List<Post> _ideasForYou = [];
   bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
 
   @override
   void dispose() {
@@ -23,7 +33,24 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  void _performSearch(String query) {
+  Future<void> _loadInitialData() async {
+    try {
+      _allPosts = await _postService.getAllPosts();
+      _loadIdeasForYou();
+      setState(() {});
+    } catch (e) {
+      print('Error loading initial data: $e');
+    }
+  }
+
+  void _loadIdeasForYou() {
+    // Create a shuffled copy of all posts for random recommendations
+    final shuffledPosts = List<Post>.from(_allPosts);
+    shuffledPosts.shuffle(Random());
+    _ideasForYou = shuffledPosts.take(6).toList();
+  }
+
+  Future<void> _performSearch(String query) async {
     if (query.isEmpty) {
       setState(() {
         _searchResults = [];
@@ -36,11 +63,25 @@ class _SearchScreenState extends State<SearchScreen> {
       _isSearching = true;
     });
 
-    final photoProvider = context.read<PhotoProvider>();
-    setState(() {
-      _searchResults = photoProvider.searchPhotos(query);
-      _isSearching = false;
-    });
+    try {
+      // Search posts by category/tags and title/caption
+      final results = _allPosts.where((post) =>
+        post.tags.any((tag) => tag.toLowerCase().contains(query.toLowerCase())) ||
+        post.title.toLowerCase().contains(query.toLowerCase()) ||
+        post.caption.toLowerCase().contains(query.toLowerCase())
+      ).toList();
+
+      setState(() {
+        _searchResults = results;
+        _isSearching = false;
+      });
+    } catch (e) {
+      print('Error performing search: $e');
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+    }
   }
 
   @override
@@ -195,14 +236,20 @@ class _SearchScreenState extends State<SearchScreen> {
                         title: 'Vintage Outfits',
                         subtitle: 'Popular at Looma',
                         color: AppTheme.primaryColor,
-                        onTap: () => _performSearch('vintage'),
+                        onTap: () {
+                          _searchController.text = 'vintage';
+                          _performSearch('vintage');
+                        },
                       ),
                       const SizedBox(height: 12),
                       _PopularCategoryCard(
                         title: 'Nail Design Ideas',
                         subtitle: 'Trending',
                         color: AppTheme.primaryLightColor,
-                        onTap: () => _performSearch('design'),
+                        onTap: () {
+                          _searchController.text = 'design';
+                          _performSearch('design');
+                        },
                       ),
                       const SizedBox(height: 20),
                       Text(
@@ -214,25 +261,20 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Ideas Grid
-                      Consumer<PhotoProvider>(
-                        builder: (context, photoProvider, child) {
-                          final photos = photoProvider.photos.take(6).toList();
-                          return GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              childAspectRatio: 1.2,
-                            ),
-                            itemCount: photos.length,
-                            itemBuilder: (context, index) {
-                              final photo = photos[index];
-                              return _IdeaCard(photo: photo);
-                            },
-                          );
+                      // Ideas Grid - Random posts recommended for the user
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 1.2,
+                        ),
+                        itemCount: _ideasForYou.length,
+                        itemBuilder: (context, index) {
+                          final post = _ideasForYou[index];
+                          return _IdeaCard(post: post);
                         },
                       ),
                     ],
@@ -272,12 +314,12 @@ class _SearchScreenState extends State<SearchScreen> {
                             crossAxisCount: 2,
                             mainAxisSpacing: 16,
                             crossAxisSpacing: 16,
-                            childAspectRatio: 0.8,
+                            childAspectRatio: 0.7,
                           ),
                           itemCount: _searchResults.length,
                           itemBuilder: (context, index) {
-                            final photo = _searchResults[index];
-                            return _SearchResultCard(photo: photo);
+                            final post = _searchResults[index];
+                            return _SearchResultCard(post: post);
                           },
                         ),
                       ),
@@ -385,9 +427,9 @@ class _PopularCategoryCard extends StatelessWidget {
 }
 
 class _IdeaCard extends StatelessWidget {
-  final Photo photo;
+  final Post post;
 
-  const _IdeaCard({required this.photo});
+  const _IdeaCard({required this.post});
 
   @override
   Widget build(BuildContext context) {
@@ -405,7 +447,7 @@ class _IdeaCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: CachedNetworkImage(
-          imageUrl: photo.url,
+          imageUrl: post.imageUrl,
           fit: BoxFit.cover,
           placeholder: (context, url) => Container(
             color: Colors.grey.shade200,
@@ -430,9 +472,9 @@ class _IdeaCard extends StatelessWidget {
 }
 
 class _SearchResultCard extends StatelessWidget {
-  final Photo photo;
+  final Post post;
 
-  const _SearchResultCard({required this.photo});
+  const _SearchResultCard({required this.post});
 
   @override
   Widget build(BuildContext context) {
@@ -455,7 +497,7 @@ class _SearchResultCard extends StatelessWidget {
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: CachedNetworkImage(
-                imageUrl: photo.url,
+                imageUrl: post.imageUrl,
                 fit: BoxFit.cover,
                 width: double.infinity,
                 placeholder: (context, url) => Container(
@@ -479,15 +521,51 @@ class _SearchResultCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Text(
-              photo.title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textColor,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  post.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  post.caption,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (post.tags.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    children: post.tags.take(2).map((tag) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '#$tag',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    )).toList(),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

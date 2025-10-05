@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/photo_provider.dart';
+import 'providers/post_provider.dart';
 import 'providers/app_provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/onboarding/animated_welcome_screen.dart';
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PhotoProvider()),
+        ChangeNotifierProvider(create: (_) => PostProvider()),
         ChangeNotifierProvider(create: (_) => AppProvider()),
       ],
       child: MaterialApp(

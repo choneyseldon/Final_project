@@ -3,7 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
+import '../../providers/post_provider.dart';
+
+
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -67,7 +71,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  void _createPost() {
+  Future<void> _createPost() async {
     if (_selectedImageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -88,22 +92,67 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       return;
     }
 
-    // TODO: Implement actual post creation logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Post created successfully!'),
-        backgroundColor: AppTheme.successColor,
-      ),
+    final postProvider = Provider.of<PostProvider>(context, listen: false);
+
+    // Show loading
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 16),
+              Text('Creating post...'),
+            ],
+          ),
+          backgroundColor: AppTheme.primaryColor,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
+    // Get user information with better fallbacks
+    // Firebase Auth will handle user information automatically in the PostService
+
+    final success = await postProvider.createPost(
+      title: _titleController.text.trim(),
+      caption: _captionController.text.trim(),
+      tags: _selectedBoards,
+      imageFile: _selectedImageFile!,
     );
 
-    // Reset form
-    setState(() {
-      _selectedImage = null;
-      _selectedImageFile = null;
-      _titleController.clear();
-      _captionController.clear();
-      _selectedBoards = [];
-    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Post created successfully!'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+
+        // Reset form
+        setState(() {
+          _selectedImage = null;
+          _selectedImageFile = null;
+          _titleController.clear();
+          _captionController.clear();
+          _selectedBoards = [];
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(postProvider.errorMessage ?? 'Failed to create post'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   @override
